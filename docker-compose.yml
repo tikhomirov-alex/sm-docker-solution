@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:13.22-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - ./db/data:/var/lib/postgresql/data
+      - ./db/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - 5430:${POSTGRES_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build: ./client
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    environment:
+      - CHOKIDAR_USEPOLL=true
+
+  backend:
+    build: ./backend
+    restart: always
+    ports:
+      - ${APP_PORT_BACKEND}:${APP_PORT_BACKEND}
+    environment:
+      APP_PORT_BACKEND: ${APP_PORT_BACKEND}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+    depends_on:
+      db:
+        condition: service_healthy
